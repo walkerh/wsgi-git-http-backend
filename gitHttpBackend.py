@@ -108,11 +108,11 @@ def _split_response_generator(proc, input_string_io, log_std_err):
             )  # TODO: Test this.
         chunks.append(chuck_data)
         # Search the two most recent chunks for the end of the header.
-        # header_end -> (hit_on_boundary, hit_index_within_chunk) or None
+        # header_end -> (header_end_on_boundary, index_within_chunk) or None
         header_end = _find_header_end_in_2_chunks(*chunks[-2:])
-    hit_on_boundary, hit_index_within_chunk = header_end
+    header_end_on_boundary, index_within_chunk = header_end
     header, remainder = _separate_header(
-        chunks, hit_on_boundary, hit_index_within_chunk
+        chunks, header_end_on_boundary, index_within_chunk
     )
     pass  # TODO
 
@@ -148,15 +148,15 @@ def _find_header_end_in_2_chunks(chunk0, chunk1):
     # Search for the header end (b'\r\n\r\n') in either the end of the
     # first chunk (with the 4-byte boundary stretching into the second
     # chunk) or within the second chunk starting at 0. Return as
-    # (hit_on_boundary, hit_index_within_chunk).
+    # (header_end_on_boundary, index_within_chunk).
     # Return None if header end not found.
     boundary_string = chunk0[-3:] + chunk1[:3]
-    hit = _search_str_for_header_end(boundary_string)
-    if hit != -1:
-        return True, len(chunk0) - 3 + hit
-    hit = _search_str_for_header_end(chunk1)
-    if hit != -1:
-        return False, hit
+    header_end = _search_str_for_header_end(boundary_string)
+    if header_end != -1:
+        return True, len(chunk0) - 3 + header_end
+    header_end = _search_str_for_header_end(chunk1)
+    if header_end != -1:
+        return False, header_end
     return None
 
 
@@ -165,20 +165,20 @@ def _search_str_for_header_end(data_str):
     return data_str.find(b'\r\n\r\n')
 
 
-def _separate_header(chunks, hit_on_boundary, hit_index_within_chunk):
+def _separate_header(chunks, header_end_on_boundary, index_within_chunk):
     # Return header, remainder
-    if hit_on_boundary:
+    if header_end_on_boundary:
         # Header ends within chunks[-2]
         header_chunks = chunks[:-2]
         last_header_chunk = chunks[-2]
         body_start_index = (4 -
-                            (len(last_header_chunk) - hit_index_within_chunk))
+                            (len(last_header_chunk) - index_within_chunk))
     else:
         # Header ends within chunks[-1]
         header_chunks = chunks[:-1]
         last_header_chunk = chunks[-1]
-        body_start_index = hit_index_within_chunk + 4
-    header_chunks.append(last_header_chunk[:hit_index_within_chunk])
+        body_start_index = index_within_chunk + 4
+    header_chunks.append(last_header_chunk[:index_within_chunk])
     header_chunks.append('\r\n')  # Line end might have been split.
     remainder = chunks[-1][body_start_index:]
     pass  # TODO
