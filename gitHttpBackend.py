@@ -88,12 +88,15 @@ def _split_response_generator(proc, input_string_io, log_std_err):
     header_end = None
     while not header_end:
         chunks.append(proc.stdout.read(CHUNK_SIZE))
-        header_end = _find_header_end(chunks)  # header_end -> (chunk, index)
+        # Search the two most recent chunks for the end of the header.
+        # header_end -> (chunk, index) or None
+        header_end = _find_header_end_in_2_chunks(*chunks[-2:])
+        pass  # TODO
     pass  # TODO
 
 
 def _input_data_pump(proc, input_string_io):
-    """Thread for feeding input to git"""
+    # Thread for feeding input to git
     current_data = input_string_io.read(CHUNK_SIZE)
     while current_data:
         proc.stdin.write(current_data)
@@ -101,7 +104,7 @@ def _input_data_pump(proc, input_string_io):
 
 
 def _output_data_pump(proc):
-    """Corountine for getting stdout from git"""
+    # Corountine for getting stdout from git
     current_data = proc.stdout.read(CHUNK_SIZE)
     while current_data:
         yield current_data
@@ -109,12 +112,27 @@ def _output_data_pump(proc):
 
 
 def _error_data_pump(proc):
-    """Thread for logging stderr from git"""
+    # Thread for logging stderr from git
     # TODO: Currently using threads due to lack of universal standard for
     # async event loops in parent applications.
     log = logging.getLogger(__name__)
     for error_message in proc.stderr:
         log.error(error_message)
+
+
+def _find_header_end_in_2_chunks(chunk0, chunk1):
+    # Search for the header end (b'\r\n\r\n') in either the end of the
+    # first chunk (with the 4-byte boundary and stretching into the second
+    # chunk) or within the second chunk starting at 0. Return as
+    # (index_of_chunk, index_within_chunk).
+    # Return None if header end not found.
+    boundary_string = chunk0[-3:] + chunk1[:3]
+    hit = _search_str_for_header_end(boundary_string)
+    if hit is not None:
+        return 0, len(chunk0) - 3 + hit
+    hit = _search_str_for_header_end(chunk1)
+    if hit is not None:
+        return 1, hit
 
 
 def _response_generator(proc, input_string_io, push_back, log_std_err):
