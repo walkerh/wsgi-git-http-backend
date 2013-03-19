@@ -84,31 +84,36 @@ def _split_response_generator(proc, input_string_io, log_std_err):
     if not log_std_err:
         threading.Thread(target=_error_data_pump, args=(proc,)).start()
     output_data_pump = _output_data_pump(proc)
-    chunks = []
+    chunks = ['']  # Dummy str at start helps here.
     header_end = None
     while not header_end:
-        chunks.append(proc.stdout.read(CHUNK_SIZE))
+        chuck_data = proc.stdout.read(CHUNK_SIZE)
+        assert chuck_data, 'reached end of HTTP input with no header boundary'
+        chunks.append(chuck_data)
+        # TODO: no head -> infinite
         # Search the two most recent chunks for the end of the header.
         # header_end -> (chunk, index) or None
         header_end = _find_header_end_in_2_chunks(*chunks[-2:])
-        pass  # TODO
+    
     pass  # TODO
 
 
 def _input_data_pump(proc, input_string_io):
     # Thread for feeding input to git
+    # TODO: Currently using threads due to lack of universal standard for
+    # async event loops in parent applications.
     current_data = input_string_io.read(CHUNK_SIZE)
     while current_data:
         proc.stdin.write(current_data)
         current_data = input_string_io.read(CHUNK_SIZE)
 
 
-def _output_data_pump(proc):
-    # Corountine for getting stdout from git
-    current_data = proc.stdout.read(CHUNK_SIZE)
-    while current_data:
-        yield current_data
-        current_data = proc.stdout.read(CHUNK_SIZE)
+# def _output_data_pump(proc):
+#     # Corountine for getting stdout from git
+#     current_data = proc.stdout.read(CHUNK_SIZE)
+#     while current_data:
+#         yield current_data
+#         current_data = proc.stdout.read(CHUNK_SIZE)
 
 
 def _error_data_pump(proc):
@@ -122,17 +127,22 @@ def _error_data_pump(proc):
 
 def _find_header_end_in_2_chunks(chunk0, chunk1):
     # Search for the header end (b'\r\n\r\n') in either the end of the
-    # first chunk (with the 4-byte boundary and stretching into the second
+    # first chunk (with the 4-byte boundary stretching into the second
     # chunk) or within the second chunk starting at 0. Return as
     # (index_of_chunk, index_within_chunk).
     # Return None if header end not found.
     boundary_string = chunk0[-3:] + chunk1[:3]
     hit = _search_str_for_header_end(boundary_string)
-    if hit is not None:
+    if hit != -1:
         return 0, len(chunk0) - 3 + hit
     hit = _search_str_for_header_end(chunk1)
-    if hit is not None:
+    if hit != -1:
         return 1, hit
+
+
+def _search_str_for_header_end(data_str):
+    """Return index of header end or -1."""
+    return data_str.find(b'\r\n\r\n')
 
 
 def _response_generator(proc, input_string_io, push_back, log_std_err):
