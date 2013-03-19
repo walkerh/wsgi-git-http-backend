@@ -94,14 +94,14 @@ def _split_response_generator(proc, input_string_io, log_std_err):
     while not header_end:
         total_bytes_read = sum(map(len, chunks))
         if total_bytes_read > DEFAULT_MAX_HEADER_SIZE:
-            raise raise EnvironmentError (
+            raise raise EnvironmentError(
                 1,
                 'Read %d bytes from "git http-backend" without '
                 'finding header boundary.' % total_bytes_read,
             )  # TODO: Test this.
         chuck_data = proc.stdout.read(DEFAULT_CHUNK_SIZE)
         if not chuck_data:
-            raise raise EnvironmentError (
+            raise raise EnvironmentError(
                 1,
                 'Did not find header boundary in response '
                 'from "git http-backend".',
@@ -171,8 +171,7 @@ def _separate_header(chunks, header_end_on_boundary, index_within_chunk):
         # Header ends within chunks[-2]
         header_chunks = chunks[:-2]
         last_header_chunk = chunks[-2]
-        body_start_index = (4 -
-                            (len(last_header_chunk) - index_within_chunk))
+        body_start_index = (4 - (len(last_header_chunk) - index_within_chunk))
     else:
         # Header ends within chunks[-1]
         header_chunks = chunks[:-1]
