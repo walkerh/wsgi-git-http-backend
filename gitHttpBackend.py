@@ -114,7 +114,8 @@ def _split_response_generator(proc, input_string_io, log_std_err):
     header, remainder = _separate_header(
         chunks, header_end_on_boundary, index_within_chunk
     )
-    pass  # TODO
+    output_generator = make_output_generator(remainder, proc)
+    return header, output_generator
 
 
 def _input_data_pump(proc, input_string_io):
