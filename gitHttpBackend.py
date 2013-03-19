@@ -179,8 +179,9 @@ def _separate_header(chunks, header_end_on_boundary, index_within_chunk):
         body_start_index = index_within_chunk + 4
     header_chunks.append(last_header_chunk[:index_within_chunk])
     header_chunks.append('\r\n')  # Line end might have been split.
+    header = ''.join(header_chunks)
     remainder = chunks[-1][body_start_index:]
-    pass  # TODO
+    return header, remainder
 
 
 def _response_generator(proc, input_string_io, push_back, log_std_err):
