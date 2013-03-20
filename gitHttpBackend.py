@@ -30,7 +30,7 @@ def wsgi_to_git_http_backend(git_repo_path, environ, start_response):
 
 
 def run_git_http_backend(cgi_environ, input_string_io, log_std_err=False):
-    """Return (header, output_generator)
+    """Return (header, response_body_generator)
     Raise EnvironmentError (errno 1) if a CGI/HTTP header is not returned
     from git http-backend."""
     if log_std_err:
@@ -81,7 +81,7 @@ def _split_response_generator(proc, input_string_io, log_std_err):
     # * Start reading stdout (and possibly stderr)
     # * Extract the header
     # * Construct a generator for everything that comes after the header
-    # * Return (header, output_generator)
+    # * Return (header, response_body_generator)
     # (The generator is responsible for extracting all data and cleaning up.)
     # Raise EnvironmentError (errno 1) if header is not returned from proc.
     threading.Thread(target=_input_data_pump,
@@ -113,8 +113,8 @@ def _split_response_generator(proc, input_string_io, log_std_err):
     header, remainder = _separate_header(
         chunks, header_end_on_boundary, index_within_chunk
     )
-    output_generator = make_output_generator(remainder, proc)
-    return header, output_generator
+    response_body_generator = _response_body_generator(remainder, proc)
+    return header, response_body_generator
 
 
 def _input_data_pump(proc, input_string_io):
