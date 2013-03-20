@@ -24,18 +24,21 @@ HEADER_END = CRLF * 2
 
 def wsgi_to_git_http_backend(wsgi_environ,
                              git_project_root,
-                             start_response,
                              user=None,
                              log_std_err=False):
     """Simple demo wrapper for how a WSGI application can use this
-    module to handle a request."""
+    module to handle a request.
+
+    See build_cgi_environ regarding git_project_root and user.
+
+    See run_git_http_backend regarding log_std_err.
+    """
     cgi_environ = build_cgi_environ(wsgi_environ, git_project_root, user)
     cgi_header, response_body_generator = run_git_http_backend(
         cgi_environ, input_stream, log_std_err
     )
     status_line, list_of_headers = parse_cgi_header(cgi_header)
-    start_response(status_line, list_of_headers)
-    return response_body_generator
+    return status_line, list_of_headers, response_body_generator
 
 
 def run_git_http_backend(cgi_environ, input_stream, log_std_err=False):
