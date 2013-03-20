@@ -125,6 +125,7 @@ def _input_data_pump(proc, input_string_io):
     while current_data:
         proc.stdin.write(current_data)
         current_data = input_string_io.read(DEFAULT_CHUNK_SIZE)
+    proc.stdin.close()
 
 
 def _error_data_pump(proc):
