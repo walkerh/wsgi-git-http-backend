@@ -176,6 +176,11 @@ def _separate_header(chunks, header_end_on_boundary, index_within_chunk):
     return header, remainder
 
 
-def _response_generator(proc, input_string_io, push_back, log_std_err):
-    """docstring for response_generator"""
-    pass
+def _response_body_generator(remainder, proc):
+    yield remainder
+    current_data = proc.stdout.read(DEFAULT_CHUNK_SIZE)
+    while current_data:
+        yield current_data
+        current_data = proc.stdout.read(DEFAULT_CHUNK_SIZE)
+    while proc.poll() is None:
+        yield ''
