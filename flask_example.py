@@ -8,12 +8,11 @@ app = Flask(__name__)
 @app.route("/<path:path>")
 def test(path):
     auth = request.authorization
+    username = None
+    password = None
     if auth:
         username = auth.username
         password = auth.password
-    else:
-        username = None
-        password = None
     out = {"path":path, "authentication":{"username":username, "password":password}}
     def to_dict(d):
         if isinstance(d, dict):
