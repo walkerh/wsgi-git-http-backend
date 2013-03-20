@@ -22,13 +22,20 @@ HEADER_END = CRLF * 2
 #     pass  # TODO
 
 
-def wsgi_to_git_http_backend(git_repo_path, environ, start_response):
-    # Parse environ
-    # Ivoke run_git_http_backend
-    # Catch header
-    # start_response
-    # return payload-iterator
-    pass  # TODO
+def wsgi_to_git_http_backend(wsgi_environ,
+                             git_project_root,
+                             start_response,
+                             user=None,
+                             log_std_err=False):
+    """Simple demo wrapper for how a WSGI application can use this
+    module to handle a request."""
+    cgi_environ = build_cgi_environ(wsgi_environ, git_project_root, user)
+    cgi_header, response_body_generator = run_git_http_backend(
+        cgi_environ, input_stream, log_std_err
+    )
+    status_line, list_of_headers = parse_cgi_header(cgi_header)
+    start_response(status_line, list_of_headers)
+    return response_body_generator
 
 
 def run_git_http_backend(cgi_environ, input_stream, log_std_err=False):
@@ -99,6 +106,22 @@ def build_cgi_environ(wsgi_environ, git_project_root, user=None):
         cgi_environ['REMOTE_USER'] = user
     cgi_environ.setdefault('REMOTE_USER', 'unknown')
     return cgi_environ
+
+
+def parse_cgi_header(cgi_header):
+    """Given the raw header returned by the CGI, return
+    (status_line, list_of_headers). This adapts the CGI header
+    to WSGI conventions."""
+    header_dict = {}
+    names = []  # to preserve order
+    for raw_line in cgi_header.split(CRLF):
+        name, padded_value = raw_line.strip().split(':', 1)
+        value = padded_value.strip()
+        header_dict[name] = value
+        names.append(name)
+    status_line = header_dict.pop('Status', None) or '200 OK'
+    list_of_headers = [(name, header_dict[name]) for name in names]
+    return status_line, list_of_headers
 
 
 def _communicate_with_git(proc, input_stream, log_std_err):
