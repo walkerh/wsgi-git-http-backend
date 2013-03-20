@@ -45,8 +45,8 @@ def run_git_http_backend(cgi_environ, input_stream, log_std_err=False):
     Python logging module. As usual, it is up to the application to
     configure logging if log_std_err is set.
 
-    Return (header, response_body_generator). The header is the string
-    of raw headers returned by git ending with just one '\r\n'. The
+    Return (cgi_header, response_body_generator). The cgi_header is the
+    string of raw headers returned by git ending with just one '\r\n'. The
     response sent back to the client will need an additional blank line
     separating this from the response body.
 
@@ -64,10 +64,10 @@ def run_git_http_backend(cgi_environ, input_stream, log_std_err=False):
         stderr=stderr,
         env=cgi_environ
     )
-    header, response_body_generator = _communicate_with_git(
+    cgi_header, response_body_generator = _communicate_with_git(
         proc, input_stream, log_std_err
     )
-    return header, response_body_generator
+    return cgi_header, response_body_generator
 
 
 def build_cgi_environ(wsgi_environ, git_project_root, user=None):
@@ -103,9 +103,9 @@ def _communicate_with_git(proc, input_stream, log_std_err):
     # Given a subprocess.Popen object:
     # * Start writing request data
     # * Start reading stdout (and possibly stderr)
-    # * Extract the header
+    # * Extract the cgi_header
     # * Construct a generator for everything that comes after the header
-    # * Return (header, response_body_generator)
+    # * Return (cgi_header, response_body_generator)
     # (The generator is responsible for extracting all data and cleaning up.)
     # Raise EnvironmentError (errno 1) if header is not returned from proc.
     threading.Thread(target=_input_data_pump,
@@ -134,11 +134,11 @@ def _communicate_with_git(proc, input_stream, log_std_err):
         # header_end -> (header_end_on_boundary, index_within_chunk) or None
         header_end = _find_header_end_in_2_chunks(*chunks[-2:])
     header_end_on_boundary, index_within_chunk = header_end
-    header, remainder = _separate_header(
+    cgi_header, remainder = _separate_header(
         chunks, header_end_on_boundary, index_within_chunk
     )
     response_body_generator = _response_body_generator(remainder, proc)
-    return header, response_body_generator
+    return cgi_header, response_body_generator
 
 
 def _input_data_pump(proc, input_stream):
