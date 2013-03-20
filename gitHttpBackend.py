@@ -182,5 +182,6 @@ def _response_body_generator(remainder, proc):
     while current_data:
         yield current_data
         current_data = proc.stdout.read(DEFAULT_CHUNK_SIZE)
+    # TODO: Do we need this?
     while proc.poll() is None:
         yield ''
