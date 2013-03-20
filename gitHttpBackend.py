@@ -9,6 +9,8 @@ import threading
 DEFAULT_CHUNK_SIZE = 0x8000
 DEFAULT_MAX_HEADER_SIZE = 0X20000  # No header should ever be this large.
 # TODO: expose these sizes to API
+CRLF = b'\r\n'
+HEADER_END = CRLF * 2
 
 
 # def flask_to_git_http_backend(git_repo_path, environ, start_response):
@@ -46,7 +48,7 @@ def run_git_http_backend(cgi_environ, input_stream, log_std_err=False):
     configure logging if log_std_err is set.
 
     Return (cgi_header, response_body_generator). The cgi_header is the
-    string of raw headers returned by git ending with just one '\r\n'. The
+    string of raw headers returned by git ending with just one CRLF. The
     response sent back to the client will need an additional blank line
     separating this from the response body.
 
@@ -162,10 +164,10 @@ def _error_data_pump(proc):
 
 
 def _find_header_end_in_2_chunks(chunk0, chunk1):
-    # Search for the header end (b'\r\n\r\n') in either the end of the
-    # first chunk (with the 4-byte boundary stretching into the second
-    # chunk) or within the second chunk starting at 0. Return as
-    # (header_end_on_boundary, index_within_chunk).
+    # Search for the 4-byte HEADER_END in either the end of the first chunk
+    # (with the 4-byte boundary stretching into the second chunk) or within
+    # the second chunk starting at 0.
+    # Return as (header_end_on_boundary, index_within_chunk).
     # Return None if header end not found.
     boundary_string = chunk0[-3:] + chunk1[:3]
     header_end = _search_str_for_header_end(boundary_string)
@@ -179,7 +181,7 @@ def _find_header_end_in_2_chunks(chunk0, chunk1):
 
 def _search_str_for_header_end(data_str):
     """Return index of header end or -1."""
-    return data_str.find(b'\r\n\r\n')
+    return data_str.find(HEADER_END)
 
 
 def _separate_header(chunks, header_end_on_boundary, index_within_chunk):
@@ -195,7 +197,7 @@ def _separate_header(chunks, header_end_on_boundary, index_within_chunk):
         last_header_chunk = chunks[-1]
         body_start_index = index_within_chunk + 4
     header_chunks.append(last_header_chunk[:index_within_chunk])
-    header_chunks.append('\r\n')  # Line end might have been split.
+    header_chunks.append(CRLF)  # Line end might have been split.
     header = ''.join(header_chunks)
     remainder = chunks[-1][body_start_index:]
     return header, remainder
