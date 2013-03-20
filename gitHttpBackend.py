@@ -33,7 +33,9 @@ def wsgi_to_git_http_backend(wsgi_environ,
 
     See run_git_http_backend regarding log_std_err.
     """
+    # TODO: use wsgi.errors instead of logging!
     cgi_environ = build_cgi_environ(wsgi_environ, git_project_root, user)
+    input_stream = wsgi_environ['wsgi.input']
     cgi_header, response_body_generator = run_git_http_backend(
         cgi_environ, input_stream, log_std_err
     )
@@ -100,11 +102,11 @@ def build_cgi_environ(wsgi_environ, git_project_root, user=None):
     alone.
     """
     cgi_environ = dict(wsgi_environ)
-    for key, value in cgi_environ.iteritems():
+    for key, value in cgi_environ.items():  # NOT iteritems, due to "del"
         if not isinstance(value, str):
             del cgi_environ[key]
     cgi_environ['GIT_HTTP_EXPORT_ALL'] = '1'
-    cgi_environ[GIT_PROJECT_ROOT] = git_project_root
+    cgi_environ['GIT_PROJECT_ROOT'] = git_project_root
     if user:
         cgi_environ['REMOTE_USER'] = user
     cgi_environ.setdefault('REMOTE_USER', 'unknown')
@@ -117,11 +119,14 @@ def parse_cgi_header(cgi_header):
     to WSGI conventions."""
     header_dict = {}
     names = []  # to preserve order
-    for raw_line in cgi_header.split(CRLF):
+    raw_lines = cgi_header.split(CRLF)
+    assert raw_lines[-1] == ''
+    for raw_line in raw_lines[:-1]:
         name, padded_value = raw_line.strip().split(':', 1)
         value = padded_value.strip()
         header_dict[name] = value
-        names.append(name)
+        if name != 'Status':
+            names.append(name)
     status_line = header_dict.pop('Status', None) or '200 OK'
     list_of_headers = [(name, header_dict[name]) for name in names]
     return status_line, list_of_headers
@@ -138,21 +143,21 @@ def _communicate_with_git(proc, input_stream, log_std_err):
     # Raise EnvironmentError (errno 1) if header is not returned from proc.
     threading.Thread(target=_input_data_pump,
                      args=(proc, input_stream)).start()
-    if not log_std_err:
+    if log_std_err:
         threading.Thread(target=_error_data_pump, args=(proc,)).start()
     chunks = ['']  # Dummy str at start helps here.
     header_end = None
     while not header_end:
         total_bytes_read = sum(map(len, chunks))
         if total_bytes_read > DEFAULT_MAX_HEADER_SIZE:
-            raise raise EnvironmentError(
+            raise EnvironmentError(
                 1,
                 'Read %d bytes from "git http-backend" without '
                 'finding header boundary.' % total_bytes_read,
             )  # TODO: Test this.
         chuck_data = proc.stdout.read(DEFAULT_CHUNK_SIZE)
         if not chuck_data:
-            raise raise EnvironmentError(
+            raise EnvironmentError(
                 1,
                 'Did not find header boundary in response '
                 'from "git http-backend".',
