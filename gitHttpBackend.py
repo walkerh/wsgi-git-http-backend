@@ -88,7 +88,6 @@ def _split_response_generator(proc, input_string_io, log_std_err):
                      args=(proc, input_string_io)).start()
     if not log_std_err:
         threading.Thread(target=_error_data_pump, args=(proc,)).start()
-    output_data_pump = _output_data_pump(proc)
     chunks = ['']  # Dummy str at start helps here.
     header_end = None
     while not header_end:
@@ -126,14 +125,6 @@ def _input_data_pump(proc, input_string_io):
     while current_data:
         proc.stdin.write(current_data)
         current_data = input_string_io.read(DEFAULT_CHUNK_SIZE)
-
-
-# def _output_data_pump(proc):
-#     # Corountine for getting stdout from git
-#     current_data = proc.stdout.read(DEFAULT_CHUNK_SIZE)
-#     while current_data:
-#         yield current_data
-#         current_data = proc.stdout.read(DEFAULT_CHUNK_SIZE)
 
 
 def _error_data_pump(proc):
