@@ -16,14 +16,8 @@ def test(path):
         password = auth.password
     out = {"path": path,
            "authentication": {"username": username, "password": password}}
-
-    def to_dict(d):
-        if isinstance(d, dict):
-            d = {k: to_dict(v) for k, v in d.items()}
-        return d
-
     out['request'] = request.environ
-    return str(('<pre>' + pp.pformat(to_dict(out)) + '</pre>'))
+    return str(('<pre>' + pp.pformat(out) + '</pre>'))
 
 
 if __name__ == "__main__":
